@@ -30,8 +30,8 @@ def preprocessing_text(text):
     text = stopword.remove(text)
     
     #factory = StemmerFactory()
-    #stemmer = factory.create_stemmer()
-    #text = stemmer.stem(text)
+    stemmer = factory.create_stemmer()
+    text = stemmer.stem(text)
     
     return text
 
@@ -39,7 +39,7 @@ def preprocessing_text(text):
 start = time.time()
 df['preprocessing_text'] = df.isi.apply(preprocessing_text)
 end = time.time()
-#df.to_csv('datasetBerita.csv', index=False, encoding='utf-8')
+df.to_csv('datasetBerita.csv', index=False, encoding='utf-8')
 end = time.time()
 hours, rem = divmod(end-start, 3600)
 minutes, seconds = divmod(rem, 60)
