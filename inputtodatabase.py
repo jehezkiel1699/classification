@@ -46,21 +46,20 @@ def scrapingKompas(kategori):
         count = 0
         for tgl in tanggal:
             count += 1
-            if count > 5:
+            if count > 10:
                 break
             txtTgl.append(tgl.text[:10])
         count = 0
         for image in images:
             count += 1
-            if count > 5:
+            if count > 10:
                 break
             txtGbr.append(image.find('img').get('src'))
         count = 0
         for item in items:
             count += 1
-            if count > 5:
+            if count > 10:
                 break
-			
             
             judul = item.find('a', 'article__link').text
             judul = judul.replace('"', "")
@@ -82,9 +81,10 @@ def scrapingKompas(kategori):
                 textHapus = []
                 
                 fullText = content.text
+
                 listText=content.find('p').find('strong')
                 
-                if(listText.text):
+                """if(listText.text):
                     if(content.find('strong').text[-1] == "m"):
                         textHapus.append(content.find('strong').text + " -")
                     else:
@@ -93,15 +93,21 @@ def scrapingKompas(kategori):
                     if(content.findAll('strong')[1].text[-1] == "m"):
                         textHapus.append(content.findAll('strong')[1].text + " -")
                     else:
-                        textHapus.append(content.findAll('strong')[1].text)
+                        textHapus.append(content.findAll('strong')[1].text)"""
+
                 fullText = re.sub('\([Bb][Aa][Cc][Aa] [Jj][Uu][Gg][Aa]([\s\S]*?)\)','',fullText)
                 fullText = re.sub('[Bb][Aa][Cc][Aa] [Jj][Uu][Gg][Aa].*','',fullText)
+                
+                fullText = re.sub('[Kk][Oo][Mm][Pp][Aa][Ss].[Cc][Oo][Mm] ?\- ?', '', fullText)
 
+                fullText = re.sub("\n", "<br>", fullText)          
+                fullText = re.sub("(<br>)+", "<br>", fullText)
 
                 for i in textHapus:
                     fullText = fullText.replace(re.sub('<[^<]+?>', '', str(i)),'')
                 fullText = fullText.replace("'", "") #karena db kalau ada tanda '(single quote) error
-                fullText = fullText.replace("\n", "<br>")
+                
+                #fullText = fullText.replace("/$/mg", "<br />")
                 fullText = fullText.encode("ascii", "ignore").decode()
                 
                 #print(txtGbr)
@@ -140,7 +146,7 @@ def scrapingSindo(kategori, tanggal):
         count = 0
         for item in items:
             count += 1
-            if count > 5:
+            if count > 10:
                 break
             judul = item.find('div', 'indeks-title').text
             judul = judul.replace('"', "")
@@ -304,7 +310,8 @@ def scrapingSindo(kategori, tanggal):
                 
                 fullText = fullText.replace("“", "")
                 fullText = fullText.replace("'", "") #karena db kalau ada tanda '(single quote) error
-                fullText = fullText.replace("\n", "<br>")
+                fullText = re.sub("\n", "<br>", fullText)          
+                fullText = re.sub("(<br>)+", "<br>", fullText)
                 fullText = fullText.encode("ascii", "ignore").decode()
                 txtIsi.append(fullText)
         page+=15
@@ -349,17 +356,22 @@ else:
 
 
 class_names = ['edukasi', 'tekno', 'sports', 'health', 'lifestyle']
-MAX_LEN = 400
+MAX_LEN = 320
 PRE_TRAINED_MODEL_BAHASA =  'indobenchmark/indobert-base-p1'
 tokenizer = BertTokenizer.from_pretrained(PRE_TRAINED_MODEL_BAHASA)
-class Klasifikasi(nn.Module):
 
-  def __init__(self, n_classes):
+checkpoint = torch.load("D:/Petra/Informatika/Skripsi/Skripsi/code/KODINGAN_FIX/indobert-base-p1_1e-05_0.2_16_2_1.bin", map_location=torch.device('cpu'))
+EPOCHS = checkpoint['epoch']
+DROPOUT = checkpoint['dropout']
+BATCH_SIZE = checkpoint['batch_size']
+MAX_LEN = checkpoint['max_len']
+LEARNING_RATE = checkpoint['learning_rate']
+class Klasifikasi(nn.Module):
+  def __init__(self, n_classes, dropout_value=0.2):
     super(Klasifikasi, self).__init__()
     self.bert = BertModel.from_pretrained(PRE_TRAINED_MODEL_BAHASA)
-    self.drop = nn.Dropout(p=0.3)
+    self.drop = nn.Dropout(p=dropout_value)
     self.out = nn.Linear(self.bert.config.hidden_size, n_classes)
-  
   def forward(self, input_ids, attention_mask):
     _, pooled_output = self.bert(
       input_ids=input_ids,
@@ -367,7 +379,7 @@ class Klasifikasi(nn.Module):
       return_dict=False
     )
     output = self.drop(pooled_output)
-    return self.out(output)
+    return self.out(pooled_output)
 
 
 
@@ -385,37 +397,65 @@ def PredictText(model, text):
       truncation=True,
       return_tensors='pt',
     )
-
-    #input_ids = encoded_review['input_ids'].to(device)
-    #attention_mask = encoded_review['attention_mask'].to(device)
     
     input_ids = encoded_review['input_ids']
     attention_mask = encoded_review['attention_mask']
     
     output = model(input_ids, attention_mask)
-    
     prob = torch.softmax(output, dim=1)
     y_pred_prob = prob.detach().cpu().numpy()
     text = []
     for a in range(len(y_pred_prob)):
-        
-    
         indeks = 0
         for b in range(len(y_pred_prob[a])):
           if(y_pred_prob[a][b]>0.5):
-            """indeks+=1
-            if indeks==1:
-              text += "%s"%(class_names[b])
-            else:
-              text += ", %s"%(class_names[b])
-            #print(text)"""
             text.append(class_names[b])
-    
+    if not text:
+        temp = torch.softmax(output, dim=1)
+        temp_prob = bubbleSort(temp[0].detach().cpu().numpy())      
+        hasil = temp_prob[0]
+        
+        for a in range(len(y_pred_prob)):
+            for b in range(len(y_pred_prob[a])):
+                if(y_pred_prob[a][b]==hasil):
+                    text.append(class_names[b])
     return text
+    """#temp = torch.softmax(output, dim=1)
+    #top2 = []
+
+    #y_pred_prob = prob[0].detach().cpu().numpy()
+    temp = bubbleSort(temp[0].detach().cpu().numpy())
+
+    
+    for a in range(len(temp)):
+      if(a==2):
+        break
+      top2.append(temp[a])
+    for a in range(len(y_pred_prob)):
+      for b in range(len(top2)):
+        if(y_pred_prob[a] == top2[b]):
+          text.append(class_names[a])"""
+ 
     #return temp_labels
 def toString(s):
     str1 = "<br>"
     return (str1.join(s))
+	
+def bubbleSort(arr):
+    n = len(arr)
+    # Traverse through all array elements
+    for i in range(n-1):
+    # range(n) also work but outer loop will repeat one time more than needed.
+  
+        # Last i elements are already in place
+        for j in range(0, n-i-1):
+  
+            # traverse the array from 0 to n-i-1
+            # Swap if the element found is greater
+            # than the next element
+            if arr[j] < arr[j+1] :
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+    return arr
 #INISIALISASI SEMUA DATA SETELAH DI SCRAPE - PREPROCESSING TEXT
 #YYYY-MM-DD	
 #class_names = ['edukasi', 'tekno', 'sports', 'health', 'lifestyle']
@@ -515,8 +555,14 @@ for a in range(len(isiberita)):
 pred_label = []
 pred_prob = []
 #LOAD MODEL
-model = Klasifikasi(len(class_names))
-model.load_state_dict(torch.load("D:/Petra/Informatika/Skripsi/Skripsi/code/KODINGAN_FIX/softmax_layer_3e-05_0.2_3.bin", map_location=torch.device('cpu')))
+
+
+model = Klasifikasi(len(class_names), DROPOUT)
+optimizer = AdamW(model.parameters(), lr=LEARNING_RATE, correct_bias=False)
+model.load_state_dict(checkpoint['model_state_dict'])
+optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
+#model = Klasifikasi(len(class_names))
+#model.load_state_dict(torch.load("D:/Petra/Informatika/Skripsi/Skripsi/code/KODINGAN_FIX/softmax_layer_3e-05_0.2_3.bin", map_location=torch.device('cpu')))
 #model.to(device)
 
 for a in range(len(preprocessing_isi)):

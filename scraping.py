@@ -17,11 +17,11 @@ start = time.time()
 def scrapingKompas(kategori):
     url = 'https://indeks.kompas.com/?site={}&date='.format(kategori)
     #32
-    for tgl in range(1,32):
+    for tgl in range(1,3):
       #Looping per page
-      url1 = url+'2021-01-{}&page='.format(tgl)  
+      url1 = url+'2021-03-{}&page='.format(tgl)  
       #manual sdh di cek maks hny 4
-      for page in range(1,4):
+      for page in range(1,2):
           req1 = requests.get(url1+"{}".format(page))
           soup = BeautifulSoup(req1.text, 'html.parser')
           items = soup.findAll('div', 'article__list__title')
@@ -39,20 +39,24 @@ def scrapingKompas(kategori):
            
            for content in contents:
                textHapus = []
-               listText = content.findAll('strong')
                fullText = content.text
-               #listText=content.find('p').find('strong')
-               #print(listText.text)
-               i = 0
+               
+              
+                    
+               fullText = re.sub('\([Bb][Aa][Cc][Aa] [Jj][Uu][Gg][Aa]([\s\S]*?)\)','',fullText)
+               fullText = re.sub('[Bb][Aa][Cc][Aa] [Jj][Uu][Gg][Aa].*','',fullText)
+               
+               fullText = re.sub('[Kk][Oo][Mm][Pp][Aa][Ss].[Cc][Oo][Mm]?\-?', '', fullText)
+               
+               listText = content.findAll('strong')
                for a in listText:
-                   i+=1
                    if(a.text[:10])=="Baca juga:":
                        textHapus.append(a)
                    elif (a.text[:10].lower())=="kompas.com":
                        textHapus.append(a)
-                    
-               fullText = re.sub('\([Bb][Aa][Cc][Aa] [Jj][Uu][Gg][Aa]([\s\S]*?)\)','',fullText)
-               fullText = re.sub('[Bb][Aa][Cc][Aa] [Jj][Uu][Gg][Aa].*','',fullText)
+
+               #fullText = re.sub("\n", "<br>", fullText)          
+               #fullText = re.sub("(<br>)+", "<br>", fullText)
                
                for i in textHapus:
                    #fullText = fullText.replace(re.sub('<[^<]+?>', '', str(i)),'')
@@ -62,29 +66,20 @@ def scrapingKompas(kategori):
                fullText = fullText.replace("'", "") #karena db kalau ada tanda '(single quote) error
                txtIsi.append(fullText)
 def scrapingSindo(kategori):
-    #url = ""
-
     if kategori == "edukasi":
         tmp = 'https://index.sindonews.com/index/144'
-
     elif kategori == "tekno":
         tmp = 'https://index.sindonews.com/index/612'
-
     elif kategori == "sports":
         tmp = 'https://index.sindonews.com/index/10'
-
     elif kategori == "lifestyle":
         tmp = 'https://index.sindonews.com/index/154'
-
     
-    for tgl in range(1,32):
-        
+    for tgl in range(1,3):
         #url = tmp + '?t=2021-01-{}'.format(tgl)
         page = 0
-        
-        
-        for i in range(1,4):
-            url1 = tmp + "/{}/?t=2021-01-{}".format(page,tgl)
+        for i in range(1,2):
+            url1 = tmp + "/{}/?t=2021-03-{}".format(page,tgl)
             req1 = requests.get(url1, timeout=None)
             soup1 = BeautifulSoup(req1.text, 'html.parser')
             items = soup1.findAll('div', 'indeks-rows')
@@ -189,16 +184,7 @@ def scrapingSindo(kategori):
                                     #print(a.text, tesIndeks[-1])
                                 #print(a.text)
                     elif(kategori == 'tekno'):
-                        """
-                        tekno:
-                        BACA JUGA:          3,1
-                         BACA JUGA-         11
-                        (Baca juga :        6,5         v
-                        (Baca juga          8           v
-                         BACA JUGA -        2           v
-                        (Baca juga: )       5
-                        Baca juga           7
-                        """
+
                         fullText = content.text
                         fullText = re.sub('\([Bb][Aa][Cc][Aa] [Jj][Uu][Gg][Aa]([\s\S]*?)\)','',fullText)
                         fullText = re.sub('[Bb][Aa][Cc][Aa] [Jj][Uu][Gg][Aa].*','',fullText)
@@ -249,13 +235,7 @@ def scrapingSindo(kategori):
                             i+=1
                             if i==1:
                                 textHapus.append(a.text + ' - ')
-                                
-                            
-                        
-                        
-                            
-                   
-                        
+
                         listText = content.findAll('strong')
                         listText += content.findAll('em')
                         for a in listText:
@@ -269,7 +249,6 @@ def scrapingSindo(kategori):
                         
                     fullText = fullText.replace("“", "")
                     fullText = fullText.replace("'", "") #karena db kalau ada tanda '(single quote) error
-                    
                     txtIsi.append(fullText)
                     
             page+=15
@@ -285,7 +264,7 @@ scrapingSindo('sports')
 scrapingSindo('tekno')
 scrapingSindo('lifestyle')
 
-for i in range(len(txtIsi)):
+"""for i in range(len(txtIsi)):
     if re.search('baca juga', txtIsi[i], re.IGNORECASE):
         print("baca juga:",i)
     if re.search('ikuti survei', txtIsi[i], re.IGNORECASE):
@@ -301,8 +280,8 @@ df = pd.DataFrame({
         "isi": txtIsi,
         "kategori": txtKategori
     })
-df.to_csv('datasetBerita.csv', index=False, encoding='utf-8')
-#df.to_csv('beritaSindo.csv', index=False, encoding='utf-8')
+df.to_csv('newNews.csv', index=False, encoding='utf-8')
+#df.to_csv('beritaSindo.csv', index=False, encoding='utf-8')"""
 end = time.time()
 hours, rem = divmod(end-start, 3600)
 minutes, seconds = divmod(rem, 60)
