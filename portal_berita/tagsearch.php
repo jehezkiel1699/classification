@@ -1,24 +1,45 @@
-<?php 
-// $output = shell_exec("D:\\Anaconda\\envs\\skripsi_php\\python.exe tes.py");
+<?php  
 include "database.php";
-if (isset($_GET['berita'])){
-	$judulBerita = $_GET['berita'];
-	// print($judulBerita);
-	$sql = "SELECT * FROM news WHERE judul='$judulBerita'";
-	$res = mysqli_query($con, $sql);
-	$berita = [];
-	#while($row =mysqli_fetch_assoc($res)){ $judul[] = $row['judul'];$isiberita[] = $row['isi'];}
-	while ($row = mysqli_fetch_assoc($res)) {
-		$berita = $row;
+
+
+if(isset($_GET['tag'])){
+	$limit = 15;
+	$page = isset($_GET['page']) ? $_GET['page'] : 1;
+	if(empty($page)){
+		$start = 0;
+		$page = 1;
+	}else{
+		$start = ($page - 1) * $limit;
 	}
-}else{
 
+	$start = ($page - 1) * $limit;
+
+	$sql = "SELECT * FROM news WHERE prediksi LIKE '%".$_GET['tag']."%' ORDER BY str_to_date(`tanggal`, '%d/%m/%Y') DESC LIMIT $start, $limit";
+	$res=mysqli_query($con, $sql);
+	$news = array();
+	while ($row = mysqli_fetch_assoc($res)) {
+		$news[] = $row;
+	}
+
+	$sql = "SELECT count(id) AS id FROM news WHERE prediksi LIKE '%".$_GET['tag']."%'";
+	$res = mysqli_query($con, $sql);
+	$newsCount = array();
+	while ($row = mysqli_fetch_assoc($res)) {
+		$newsCount[] = $row;
+	}
+	$total = $newsCount[0]['id'];
+	$pages = ceil($total/$limit);
+
+	$Previous = $page - 1;
+	$Next = $page + 1;
 }
- ?>
 
+
+?>
 <!DOCTYPE html>
 <html>
 <head>
+
 	<!-- Required meta tags -->
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -29,9 +50,11 @@ if (isset($_GET['berita'])){
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-BmbxuPwQa2lc/FVzBcNJ7UAyJxM6wuqIj61tLrc4wSX0szH/Ev+nYRRuWlolflfl" crossorigin="anonymous">
     <link href="https://fonts.googleapis.com/css2?family=Crimson+Text:wght@600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
+
     <title>Portal Berita</title>
 </head>
 <body>
+	
 	
 	<div class="container-fluid mt-2 ">
 		<!-- Navbar -->
@@ -65,52 +88,86 @@ if (isset($_GET['berita'])){
 									<a class="nav-link active" href="indeksberita.php">Indeks</a>
 								</li> -->
 							</ul>
-							<!-- <form class="d-flex">
-								<input class="form-control me-2" type="search" placeholder="Search" aria-label="Search">
-								<button class="btn btn-outline-success" type="submit">Search</button>
-							</form> -->
+
 						</div>
 					</div>
 				</nav>
 			</div>
-		</div>
+		</div>   
 
 		<div class="row mt-3 mx-3">
 			<div class="col-md-12">
-				<div class="row">
-					<div class="col-md-12">
-						<!-- Headline -->
-						<div class="row">
-							<div class="col-md-12"><p class="judulberita"><?php echo $berita['judul'] ?></p></div>
-						</div>
-						<div class="row">
-							<div class="col-md-12"><p><?php echo $berita['tanggal'] ?></p></div>
-						</div>
+				<p class="judul">Tag : <?php echo $_GET['tag'] ?></p>
+				<hr style="border:1px solid black">
+			</div>
+		</div>
 
+		<?php foreach ($news as $berita): ?>
+		<div class="row mt-3 mx-3">
+			<div class="col-md-12">
+				<a href="detailberita.php?berita=<?php echo $berita['judul'] ?>" style="text-decoration: none; color:black">
+					<div class="card">
+						<div class="card-body">
+							<div class="row">
+								<div class="col-md-3">
+									<img src="<?php echo $berita['gambar'] ?>" class="img-thumbnail" style="width:auto; height: 200px">
+								</div>
+								<div class="col-md-9">
+									<p class="judulberita"><?php echo $berita['judul'] ?></p>
+									<span class="align-bottom"><?php echo $berita['tanggal'] ?></span>
+								</div>
+							</div>
+						</div>
 					</div>
-				</div>
+				</a>
+
+				
 			</div>
 		</div>
+		<?php endforeach ?>
 
-		<div class="row mt-3 mx-3">
+		<div class="row mt-3">
 			<div class="col-md-12">
-				<p class="isiberita"><?php echo $berita['isi'] ?></p>
-			</div>
-			
-		</div>
-        
-        <div class="row mt-3 mx-3">
-        	<!-- <?php $tagBerita = str_replace("<br>", ",", $berita['prediksi']); ?> -->
-        	<p>Tags :</p> 
-        	<?php $kategori= explode("<br>", $berita['prediksi']); ?>
-        	<?php foreach ($kategori as $cat ) { ?>
-        		<a href="tagsearch.php?tag=<?php echo $cat; ?>"><?php echo $cat; ?></a>
-        	<?php } ?>
-        	
-        </div>
+				<nav aria-label="Page navigation example">
+					<ul class="pagination justify-content-center">
+						<?php if($start == 0){ ?>
+						<li class="page-item">
+							<a class="page-link" href="tagsearch.php?tag=<?php echo $_GET['tag']; ?>&page=<?= $Previous; ?>" tabindex="-1" style="display:none;">Previous</a>
+						</li>
+						<?php }else{ ?>
+						<li class="page-item">
+							<a class="page-link" href="tagsearch.php?tag=<?php echo $_GET['tag']; ?>&page=<?= $Previous; ?>" tabindex="-1">Previous</a>
+						</li>
+						<?php } ?>
+						<!--<?php if($page==0){ ?>
+						<li class="page-item">
+							<a class="page-link" href="index.php?page=<?= $Previous; ?>" tabindex="-1" style="display: none;">Previous</a>
+						</li>
+						<?php }else{ ?>
+							<?php if($page==1){ ?>
+								<?php $page=0 ?>
+								<a class="page-link" href="index.php" tabindex="-1" >Previous</a>
+							<?php }else{ ?>
+								<a class="page-link" href="index.php?page=<?= $Previous; ?>" tabindex="-1">Previous</a>
+							<?php } ?>
+						<?php } ?>-->
 
-		      
+						<?php for($i = 1; $i<= $pages; $i++) :?>
+							<li><a class="page-link" href="tagsearch.php?tag=<?php echo $_GET['tag']; ?>&page=<?= $i; ?>" ><?= $i; ?></a></li>
+						<?php endfor; ?>
+						<?php if($page != $pages){ ?>
+						<li class="page-item">
+					    	<a class="page-link" href="tagsearch.php?tag=<?php echo $_GET['tag']; ?>&page=<?= $Next; ?>">Next</a>
+					    </li>
+					    <?php } ?>
+					</ul>
+				</nav>
+			
+			</div>
+		</div>
     </div>
+
+		
 
     <!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script> -->
     <!-- <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.bundle.min.js" integrity="sha384-LtrjvnR4Twt/qOuYxE721u19sVFLVSA4hf/rRt6PrZTmiPltdZcI7q7PXQBYTKyf" crossorigin="anonymous"></script> -->
